@@ -1,0 +1,79 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Rename files and setup structure
+        run: |
+          mkdir -p lib/screens lib/models lib/services android/app/src/main ios/Runner
+          
+          # Rename pubspec
+          mv gemini-code-*.yaml pubspec.yaml 2>/dev/null || true
+          
+          # Move main.dart
+          for f in gemini-code-*.dart; do
+            if grep -q "void main" "$f"; then
+              mv "$f" lib/main.dart
+            elif grep -q "class SplashScreen" "$f"; then
+              mv "$f" lib/screens/splash_screen.dart
+            elif grep -q "class NewsPost" "$f"; then
+              mv "$f" lib/models/news_post.dart
+            elif grep -q "class NewsCategory" "$f"; then
+              mv "$f" lib/models/news_category.dart
+            elif grep -q "class WordPressService" "$f"; then
+              mv "$f" lib/services/wordpress_service.dart
+            elif grep -q "class NewsFeedScreen" "$f"; then
+              mv "$f" lib/screens/news_feed_screen.dart
+            elif grep -q "class NewsDetailScreen" "$f"; then
+              mv "$f" lib/screens/news_detail_screen.dart
+            elif grep -q "class BookmarksScreen" "$f"; then
+              mv "$f" lib/screens/bookmarks_screen.dart
+            elif grep -q "class ReporterLoginScreen" "$f"; then
+              mv "$f" lib/screens/reporter_login_screen.dart
+            elif grep -q "class ReporterWebViewScreen" "$f"; then
+              mv "$f" lib/screens/reporter_webview_screen.dart
+            elif grep -q "class CitizenReporterScreen" "$f"; then
+              mv "$f" lib/screens/citizen_reporter_screen.dart
+            elif grep -q "class LiveTvShortsScreen" "$f"; then
+              mv "$f" lib/screens/live_tv_shorts_screen.dart
+            fi
+          done
+
+          # Rename xml & plist
+          for f in gemini-code-*.xml; do
+            mv "$f" android/app/src/main/AndroidManifest.xml 2>/dev/null || true
+          done
+          for f in gemini-code-*.plist; do
+            mv "$f" ios/Runner/Info.plist 2>/dev/null || true
+          done
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.x'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: news7india-app
+          path: build/app/outputs/flutter-apk/app-release.apk
